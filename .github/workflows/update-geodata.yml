@@ -1,0 +1,334 @@
+name: Update RunetFreedom geodata
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_refresh:
+        description: Increase LastUpdated even when geo files have not changed
+        required: false
+        default: false
+        type: boolean
+
+  # RunetFreedom starts builds at 03:30, 09:30, 15:30 and 21:30 UTC.
+  # This workflow starts 45 minutes later.
+  schedule:
+    - cron: "15 4,10,16,22 * * *"
+
+  # Regenerate output files after editing the template or this workflow.
+  push:
+    branches:
+      - main
+    paths:
+      - "config/routing.template.json"
+      - ".github/workflows/update-geodata.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-runetfreedom-geodata
+  cancel-in-progress: false
+
+env:
+  # Stable URLs used by both HAPP and INCY.
+  GEOIP_URL: https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat
+  GEOSITE_URL: https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat
+
+  # Upstream checksums used to detect an actual geo-file update.
+  GEOIP_CHECKSUM_URL: https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat.sha256sum
+  GEOSITE_CHECKSUM_URL: https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat.sha256sum
+
+  # Common routing profile template.
+  TEMPLATE_PATH: config/routing.template.json
+
+  # HAPP output configuration.
+  HAPP_ENABLED: "true"
+  HAPP_PROFILE_NAME: runetfreedom
+  HAPP_JSON_PATH: HAPP/JSONSUB.JSON
+  HAPP_DEEPLINK_PATH: HAPP/JSONSUB.DEEPLINK
+  HAPP_DEEPLINK_SCHEME: happ
+  HAPP_DEEPLINK_ACTION: onadd
+
+  # INCY output configuration.
+  INCY_ENABLED: "true"
+  INCY_PROFILE_NAME: runetfreedom
+  INCY_JSON_PATH: INCY/JSONSUB.JSON
+  INCY_DEEPLINK_PATH: INCY/JSONSUB.DEEPLINK
+  INCY_DEEPLINK_SCHEME: incy
+  INCY_DEEPLINK_ACTION: onadd
+
+  # Validation and network behavior.
+  VERIFY_GEO_FILES_ON_CHANGE: "true"
+  CURL_CONNECT_TIMEOUT_SECONDS: "15"
+  CURL_MAX_TIME_SECONDS: "180"
+  CURL_RETRY_COUNT: "4"
+  CURL_RETRY_DELAY_SECONDS: "5"
+
+  # Added to the generated Unix timestamp. Normally leave at 0.
+  LAST_UPDATED_OFFSET_SECONDS: "0"
+
+  # Commit configuration.
+  COMMIT_MESSAGE_PREFIX: "chore: update geodata"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update JSON and deeplinks
+        id: update
+        shell: bash
+        env:
+          FORCE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && inputs.force_refresh || false }}
+        run: |
+          set -Eeuo pipefail
+
+          state_file=".geodata-checksums"
+
+          log() {
+            printf '[%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"
+          }
+
+          fail() {
+            log "ERROR: $*"
+            exit 1
+          }
+
+          require_command() {
+            command -v "$1" >/dev/null 2>&1 || fail "Required command is missing: $1"
+          }
+
+          is_true() {
+            case "${1,,}" in
+              1|true|yes|on) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          curl_get() {
+            curl \
+              --fail \
+              --silent \
+              --show-error \
+              --location \
+              --connect-timeout "$CURL_CONNECT_TIMEOUT_SECONDS" \
+              --max-time "$CURL_MAX_TIME_SECONDS" \
+              --retry "$CURL_RETRY_COUNT" \
+              --retry-delay "$CURL_RETRY_DELAY_SECONDS" \
+              --retry-all-errors \
+              "$1"
+          }
+
+          extract_sha256() {
+            awk '{ print tolower($1); exit }'
+          }
+
+          validate_sha256() {
+            [[ "$1" =~ ^[0-9a-f]{64}$ ]] || fail "Invalid SHA-256 value: $1"
+          }
+
+          read_state_value() {
+            local key="$1"
+
+            [[ -f "$state_file" ]] || return 0
+            awk -F= -v key="$key" '$1 == key { print $2; exit }' "$state_file"
+          }
+
+          get_current_last_updated() {
+            local candidate=""
+
+            if [[ -f "$HAPP_JSON_PATH" ]]; then
+              candidate="$(jq -r '.LastUpdated // empty' "$HAPP_JSON_PATH")"
+            fi
+
+            if [[ -z "$candidate" && -f "$INCY_JSON_PATH" ]]; then
+              candidate="$(jq -r '.LastUpdated // empty' "$INCY_JSON_PATH")"
+            fi
+
+            if [[ -z "$candidate" ]]; then
+              candidate="$(jq -r '.LastUpdated // "0"' "$TEMPLATE_PATH")"
+            fi
+
+            [[ "$candidate" =~ ^[0-9]+$ ]] || fail "LastUpdated must be a Unix timestamp string"
+            printf '%s\n' "$candidate"
+          }
+
+          next_last_updated() {
+            local current="$1"
+            local candidate
+
+            candidate=$(( $(date -u '+%s') + LAST_UPDATED_OFFSET_SECONDS ))
+
+            if (( candidate <= current )); then
+              candidate=$(( current + 1 ))
+            fi
+
+            printf '%s\n' "$candidate"
+          }
+
+          verify_geo_file() {
+            local url="$1"
+            local expected_sha="$2"
+            local destination="$3"
+
+            curl_get "${url}?checksum=${expected_sha}" > "$destination"
+            printf '%s  %s\n' "$expected_sha" "$destination" | sha256sum --check --status - \
+              || fail "Downloaded file does not match upstream checksum: $url"
+          }
+
+          generate_profile() {
+            local enabled="$1"
+            local profile_name="$2"
+            local scheme="$3"
+            local action="$4"
+            local json_path="$5"
+            local deeplink_path="$6"
+            local payload decoded expected
+
+            is_true "$enabled" || {
+              log "Skipping disabled profile: $scheme"
+              return 0
+            }
+
+            mkdir -p "$(dirname "$json_path")" "$(dirname "$deeplink_path")"
+
+            jq \
+              --arg name "$profile_name" \
+              --arg geoip_url "$GEOIP_URL" \
+              --arg geosite_url "$GEOSITE_URL" \
+              --arg last_updated "$last_updated" \
+              '
+                .Name = $name
+                | .Geoipurl = $geoip_url
+                | .Geositeurl = $geosite_url
+                | .LastUpdated = $last_updated
+              ' \
+              "$TEMPLATE_PATH" > "${json_path}.tmp"
+
+            jq empty "${json_path}.tmp"
+            mv "${json_path}.tmp" "$json_path"
+
+            payload="$(jq -c . "$json_path" | base64 --wrap=0)"
+            printf '%s://routing/%s/%s\n' "$scheme" "$action" "$payload" > "$deeplink_path"
+
+            decoded="$(
+              sed "s#^${scheme}://routing/${action}/##" "$deeplink_path" \
+                | tr -d '\r\n' \
+                | base64 --decode \
+                | jq -S .
+            )"
+            expected="$(jq -S . "$json_path")"
+
+            [[ "$decoded" == "$expected" ]] \
+              || fail "Generated $scheme deeplink does not match $json_path"
+
+            log "Generated $json_path and $deeplink_path"
+          }
+
+          require_command curl
+          require_command jq
+          require_command base64
+          require_command sha256sum
+          require_command awk
+          require_command sed
+
+          [[ -f "$TEMPLATE_PATH" ]] || fail "Template was not found: $TEMPLATE_PATH"
+          jq empty "$TEMPLATE_PATH"
+
+          cache_buster="${GITHUB_RUN_ID:-$(date -u '+%s')}"
+
+          log "Fetching upstream checksums"
+          remote_geoip_sha="$(curl_get "${GEOIP_CHECKSUM_URL}?v=${cache_buster}" | extract_sha256)"
+          remote_geosite_sha="$(curl_get "${GEOSITE_CHECKSUM_URL}?v=${cache_buster}" | extract_sha256)"
+
+          validate_sha256 "$remote_geoip_sha"
+          validate_sha256 "$remote_geosite_sha"
+
+          current_geoip_sha="$(read_state_value GEOIP_SHA256)"
+          current_geosite_sha="$(read_state_value GEOSITE_SHA256)"
+
+          geodata_changed="false"
+          if [[ "$remote_geoip_sha" != "$current_geoip_sha" \
+             || "$remote_geosite_sha" != "$current_geosite_sha" ]]; then
+            geodata_changed="true"
+          fi
+
+          current_last_updated="$(get_current_last_updated)"
+          last_updated="$current_last_updated"
+
+          if is_true "$geodata_changed" || is_true "$FORCE_REFRESH"; then
+            last_updated="$(next_last_updated "$current_last_updated")"
+          fi
+
+          log "GeoIP checksum:   $remote_geoip_sha"
+          log "Geosite checksum: $remote_geosite_sha"
+          log "Geo files changed: $geodata_changed"
+          log "Force refresh: ${FORCE_REFRESH,,}"
+          log "LastUpdated: $last_updated"
+
+          if is_true "$geodata_changed" && is_true "$VERIFY_GEO_FILES_ON_CHANGE"; then
+            log "Downloading and verifying changed geo files"
+            tmp_dir="$(mktemp -d)"
+            trap 'rm -rf "$tmp_dir"' EXIT
+
+            verify_geo_file "$GEOIP_URL" "$remote_geoip_sha" "$tmp_dir/geoip.dat"
+            verify_geo_file "$GEOSITE_URL" "$remote_geosite_sha" "$tmp_dir/geosite.dat"
+          fi
+
+          generate_profile \
+            "$HAPP_ENABLED" \
+            "$HAPP_PROFILE_NAME" \
+            "$HAPP_DEEPLINK_SCHEME" \
+            "$HAPP_DEEPLINK_ACTION" \
+            "$HAPP_JSON_PATH" \
+            "$HAPP_DEEPLINK_PATH"
+
+          generate_profile \
+            "$INCY_ENABLED" \
+            "$INCY_PROFILE_NAME" \
+            "$INCY_DEEPLINK_SCHEME" \
+            "$INCY_DEEPLINK_ACTION" \
+            "$INCY_JSON_PATH" \
+            "$INCY_DEEPLINK_PATH"
+
+          cat > "$state_file" <<EOF
+          GEOIP_SHA256=${remote_geoip_sha}
+          GEOSITE_SHA256=${remote_geosite_sha}
+          EOF
+
+          {
+            echo "geodata_changed=$geodata_changed"
+            echo "last_updated=$last_updated"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit generated files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          if git diff --quiet && git diff --cached --quiet && [[ -z "$(git status --porcelain)" ]]; then
+            echo "No changes detected"
+            exit 0
+          fi
+
+          git add -A -- \
+            .geodata-checksums \
+            HAPP \
+            INCY
+
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit"
+            exit 0
+          fi
+
+          git config --local user.name "$GITHUB_ACTOR"
+          git config --local user.email \
+            "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+
+          git commit -m "${COMMIT_MESSAGE_PREFIX} (LastUpdated: ${{ steps.update.outputs.last_updated }})"
+          git push
