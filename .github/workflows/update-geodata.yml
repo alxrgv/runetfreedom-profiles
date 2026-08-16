@@ -30,13 +30,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Stable URLs used by both HAPP and INCY.
-  GEOIP_URL: https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat
-  GEOSITE_URL: https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat
-
-  # Upstream checksums used to detect an actual geo-file update.
-  GEOIP_CHECKSUM_URL: https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat.sha256sum
-  GEOSITE_CHECKSUM_URL: https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat.sha256sum
+  # GitHub owner/repository that provides the release assets.
+  UPSTREAM_REPOSITORY: runetfreedom/russia-v2ray-rules-dat
 
   # Common routing profile template.
   TEMPLATE_PATH: config/routing.template.json
@@ -128,6 +123,17 @@ jobs:
             awk '{ print tolower($1); exit }'
           }
 
+          release_asset_url() {
+            local asset_name="$1"
+
+            jq -er --arg asset_name "$asset_name" '
+              [ .assets[] | select(.name == $asset_name) | .browser_download_url ]
+              | if length == 1 then .[0]
+                else error("expected exactly one release asset named " + $asset_name)
+                end
+            ' <<< "$release_json"
+          }
+
           validate_sha256() {
             [[ "$1" =~ ^[0-9a-f]{64}$ ]] || fail "Invalid SHA-256 value: $1"
           }
@@ -139,21 +145,35 @@ jobs:
             awk -F= -v key="$key" '$1 == key { print $2; exit }' "$state_file"
           }
 
+          read_profile_last_updated() {
+            local profile_path="$1"
+
+            jq -er '
+              (.LastUpdated // empty)
+              | select(type == "string" and test("^[0-9]+$"))
+            ' "$profile_path" 2>/dev/null
+          }
+
           get_current_last_updated() {
             local candidate=""
 
             if [[ -f "$HAPP_JSON_PATH" ]]; then
-              candidate="$(jq -r '.LastUpdated // empty' "$HAPP_JSON_PATH")"
+              candidate="$(read_profile_last_updated "$HAPP_JSON_PATH" || true)"
+              [[ -n "$candidate" ]] \
+                || log "Ignoring invalid LastUpdated in $HAPP_JSON_PATH; it will be regenerated" >&2
             fi
 
             if [[ -z "$candidate" && -f "$INCY_JSON_PATH" ]]; then
-              candidate="$(jq -r '.LastUpdated // empty' "$INCY_JSON_PATH")"
+              candidate="$(read_profile_last_updated "$INCY_JSON_PATH" || true)"
+              [[ -n "$candidate" ]] \
+                || log "Ignoring invalid LastUpdated in $INCY_JSON_PATH; it will be regenerated" >&2
             fi
 
             if [[ -z "$candidate" ]]; then
               candidate="$(jq -r '.LastUpdated // "0"' "$TEMPLATE_PATH")"
             fi
 
+            [[ -n "$candidate" ]] || candidate="0"
             [[ "$candidate" =~ ^[0-9]+$ ]] || fail "LastUpdated must be a Unix timestamp string"
             printf '%s\n' "$candidate"
           }
@@ -240,17 +260,35 @@ jobs:
           [[ -f "$TEMPLATE_PATH" ]] || fail "Template was not found: $TEMPLATE_PATH"
           jq empty "$TEMPLATE_PATH"
 
-          cache_buster="${GITHUB_RUN_ID:-$(date -u '+%s')}"
+          upstream_release_api_url="https://api.github.com/repos/${UPSTREAM_REPOSITORY}/releases/latest"
 
-          log "Fetching upstream checksums"
-          remote_geoip_sha="$(curl_get "${GEOIP_CHECKSUM_URL}?v=${cache_buster}" | extract_sha256)"
-          remote_geosite_sha="$(curl_get "${GEOSITE_CHECKSUM_URL}?v=${cache_buster}" | extract_sha256)"
+          log "Fetching latest upstream release metadata from $UPSTREAM_REPOSITORY"
+          release_json="$(curl_get "$upstream_release_api_url")"
+          jq -e '.draft == false and .prerelease == false and (.tag_name | type == "string")' \
+            <<< "$release_json" >/dev/null \
+            || fail "Latest upstream release metadata is invalid"
+
+          GEOIP_URL="$(release_asset_url geoip.dat)" \
+            || fail "Latest upstream release does not provide geoip.dat"
+          GEOSITE_URL="$(release_asset_url geosite.dat)" \
+            || fail "Latest upstream release does not provide geosite.dat"
+          geoip_checksum_url="$(release_asset_url geoip.dat.sha256sum)" \
+            || fail "Latest upstream release does not provide geoip.dat.sha256sum"
+          geosite_checksum_url="$(release_asset_url geosite.dat.sha256sum)" \
+            || fail "Latest upstream release does not provide geosite.dat.sha256sum"
+
+          log "Latest upstream release: $(jq -r '.tag_name' <<< "$release_json")"
+          log "Fetching release-asset checksums"
+          remote_geoip_sha="$(curl_get "$geoip_checksum_url" | extract_sha256)"
+          remote_geosite_sha="$(curl_get "$geosite_checksum_url" | extract_sha256)"
 
           validate_sha256 "$remote_geoip_sha"
           validate_sha256 "$remote_geosite_sha"
 
           current_geoip_sha="$(read_state_value GEOIP_SHA256)"
           current_geosite_sha="$(read_state_value GEOSITE_SHA256)"
+          current_geoip_url="$(read_state_value GEOIP_URL)"
+          current_geosite_url="$(read_state_value GEOSITE_URL)"
 
           geodata_changed="false"
           if [[ "$remote_geoip_sha" != "$current_geoip_sha" \
@@ -258,16 +296,25 @@ jobs:
             geodata_changed="true"
           fi
 
+          release_assets_changed="false"
+          if [[ "$GEOIP_URL" != "$current_geoip_url" \
+             || "$GEOSITE_URL" != "$current_geosite_url" ]]; then
+            release_assets_changed="true"
+          fi
+
           current_last_updated="$(get_current_last_updated)"
           last_updated="$current_last_updated"
 
-          if is_true "$geodata_changed" || is_true "$FORCE_REFRESH"; then
+          if is_true "$geodata_changed" \
+             || is_true "$release_assets_changed" \
+             || is_true "$FORCE_REFRESH"; then
             last_updated="$(next_last_updated "$current_last_updated")"
           fi
 
           log "GeoIP checksum:   $remote_geoip_sha"
           log "Geosite checksum: $remote_geosite_sha"
           log "Geo files changed: $geodata_changed"
+          log "Release assets changed: $release_assets_changed"
           log "Force refresh: ${FORCE_REFRESH,,}"
           log "LastUpdated: $last_updated"
 
@@ -299,10 +346,13 @@ jobs:
           cat > "$state_file" <<EOF
           GEOIP_SHA256=${remote_geoip_sha}
           GEOSITE_SHA256=${remote_geosite_sha}
+          GEOIP_URL=${GEOIP_URL}
+          GEOSITE_URL=${GEOSITE_URL}
           EOF
 
           {
             echo "geodata_changed=$geodata_changed"
+            echo "release_assets_changed=$release_assets_changed"
             echo "last_updated=$last_updated"
           } >> "$GITHUB_OUTPUT"
 
