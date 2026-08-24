@@ -8,9 +8,9 @@
   "DomesticDNSType": "DoH",
   "DomesticDNSDomain": "https://common.dot.dns.yandex.net/dns-query",
   "DomesticDNSIP": "77.88.8.8",
-  "Geoipurl": "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202608232147/geoip.dat",
-  "Geositeurl": "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202608232147/geosite.dat",
-  "LastUpdated": "1787524617",
+  "Geoipurl": "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202608240421/geoip.dat",
+  "Geositeurl": "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202608240421/geosite.dat",
+  "LastUpdated": "1787547655",
   "DnsHosts": {
     "dns.google": "8.8.8.8",
     "common.dot.dns.yandex.net": "77.88.8.8"
