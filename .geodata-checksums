@@ -1,4 +1,4 @@
-GEOIP_SHA256=72a3798eca46df8c5c9baea3048c03a371727f34b83566ab71e1fc11b46fe445
+GEOIP_SHA256=1befb7b23beca93aa2df894cdd0e04d91d59d425f413864f8664ec1eec1b7df5
 GEOSITE_SHA256=76fdbe01687a6cc7683b50c38ceea84941458e8371d215918daf555665a537cd
-GEOIP_URL=https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202608270058/geoip.dat
-GEOSITE_URL=https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202608270058/geosite.dat
+GEOIP_URL=https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202608271429/geoip.dat
+GEOSITE_URL=https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202608271429/geosite.dat
