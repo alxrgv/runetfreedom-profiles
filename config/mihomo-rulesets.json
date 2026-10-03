@@ -10,7 +10,12 @@
     "steam",
     "epicgames",
     "origin",
-    "googlefcm"
+    "googlefcm",
+    "ru-blocked",
+    "apple",
+    "google-play",
+    "github",
+    "twitch"
   ],
   "geoip": [
     "private"
