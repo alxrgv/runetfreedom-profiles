@@ -176,6 +176,86 @@
       "path": "./rulesets/geosite/googlefcm.mrs",
       "interval": 21600
     },
+    "geosite-ru-blocked-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/master/MIHOMO/classical/ru-blocked-extra.list",
+      "path": "./rulesets/classical/ru-blocked-extra.list",
+      "interval": 21600
+    },
+    "geosite-ru-blocked": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/master/MIHOMO/geosite/ru-blocked.mrs",
+      "path": "./rulesets/geosite/ru-blocked.mrs",
+      "interval": 21600
+    },
+    "geosite-apple-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/master/MIHOMO/classical/apple-extra.list",
+      "path": "./rulesets/classical/apple-extra.list",
+      "interval": 21600
+    },
+    "geosite-apple": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/master/MIHOMO/geosite/apple.mrs",
+      "path": "./rulesets/geosite/apple.mrs",
+      "interval": 21600
+    },
+    "geosite-google-play-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/master/MIHOMO/classical/google-play-extra.list",
+      "path": "./rulesets/classical/google-play-extra.list",
+      "interval": 21600
+    },
+    "geosite-google-play": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/master/MIHOMO/geosite/google-play.mrs",
+      "path": "./rulesets/geosite/google-play.mrs",
+      "interval": 21600
+    },
+    "geosite-github-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/master/MIHOMO/classical/github-extra.list",
+      "path": "./rulesets/classical/github-extra.list",
+      "interval": 21600
+    },
+    "geosite-github": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/master/MIHOMO/geosite/github.mrs",
+      "path": "./rulesets/geosite/github.mrs",
+      "interval": 21600
+    },
+    "geosite-twitch-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/master/MIHOMO/classical/twitch-extra.list",
+      "path": "./rulesets/classical/twitch-extra.list",
+      "interval": 21600
+    },
+    "geosite-twitch": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/master/MIHOMO/geosite/twitch.mrs",
+      "path": "./rulesets/geosite/twitch.mrs",
+      "interval": 21600
+    },
     "geoip-private": {
       "type": "http",
       "behavior": "ipcidr",

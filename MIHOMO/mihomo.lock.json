@@ -3,6 +3,10 @@
     "size": 46,
     "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
   },
+  "geosite:apple:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
   "geosite:binance:extra": {
     "size": 46,
     "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
@@ -18,6 +22,14 @@
   "geosite:epicgames:extra": {
     "size": 169,
     "sha256": "acc7d4cb3a1ffd4e8686c5e561d0311213cb9fc32ac3193a3106c354e915cd11"
+  },
+  "geosite:github:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:google-play:extra": {
+    "size": 146,
+    "sha256": "9550293727ae54248bf6623a0adbd9d17d6e61df0c19aa559307cc195bd1cfc5"
   },
   "geosite:googlefcm:extra": {
     "size": 46,
@@ -39,7 +51,15 @@
     "size": 46,
     "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
   },
+  "geosite:ru-blocked:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
   "geosite:steam:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:twitch:extra": {
     "size": 46,
     "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
   },
@@ -50,6 +70,10 @@
   "geosite:antifilter-download-community": {
     "size": 4081,
     "sha256": "6575056f960714463b9386dbd11ec335da52027fb80959acf261173f4d9c5454"
+  },
+  "geosite:apple": {
+    "size": 17859,
+    "sha256": "ef067fccb6b336c650703e8126707690e038122598ec813b6edb4dfae8a51823"
   },
   "geosite:binance": {
     "size": 547,
@@ -66,6 +90,14 @@
   "geosite:epicgames": {
     "size": 413,
     "sha256": "87096a7c01ded9ac4cd8639dbd6871663c1df60b534c78cee34cace1e3b7bd3e"
+  },
+  "geosite:github": {
+    "size": 825,
+    "sha256": "7409141df2e34091427c4dfc880635131b69e33dd4655d0854b67430ce211984"
+  },
+  "geosite:google-play": {
+    "size": 180,
+    "sha256": "0303fc6e33219afe75bfef1fdc2efdc45000ad0de54886a72cddf887f1ec23cc"
   },
   "geosite:googlefcm": {
     "size": 133,
@@ -87,12 +119,20 @@
     "size": 1301,
     "sha256": "58c7b41c1e093a963b897ea3ba52e484c2672c20ff276241771d0fc6117333c9"
   },
+  "geosite:ru-blocked": {
+    "size": 553010,
+    "sha256": "5435ad6ca07d951e9d1ab19bc326bd461018eb60caab75be257c11ef84b14205"
+  },
   "geosite:steam": {
     "size": 872,
     "sha256": "29f97832356a15e6125a601c98a7286324054fbca8b74b56e0eb43e2fb3a64aa"
   },
+  "geosite:twitch": {
+    "size": 454,
+    "sha256": "33e7854e6183bc9f6d8379c4e37a4411e354de9846db9b64bfe67fb539287975"
+  },
   "rule-providers.yaml": {
-    "size": 7331,
-    "sha256": "c6b073589c7445abccd3d881a3a62f4c4b28878b6608bc71f0809ea0636d7d37"
+    "size": 10389,
+    "sha256": "408a4a0596dda8ff52edeea274df947138f43327b7156a8d4ac8c2ccfc6bcd26"
   }
 }
