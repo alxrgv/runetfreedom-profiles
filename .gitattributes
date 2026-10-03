@@ -1,0 +1,8 @@
+.github/workflows/*.yml text eol=lf
+scripts/*.py text eol=lf
+scripts/*.go text eol=lf
+config/mihomo-*.json text eol=lf
+MIHOMO/*.json text eol=lf
+MIHOMO/*.yaml text eol=lf
+MIHOMO/classical/*.list text eol=lf
+*.mrs binary

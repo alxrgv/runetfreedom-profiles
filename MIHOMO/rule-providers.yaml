@@ -1,0 +1,188 @@
+{
+  "rule-providers": {
+    "geosite-reddit-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/reddit-extra.list",
+      "path": "./rulesets/classical/reddit-extra.list",
+      "interval": 21600
+    },
+    "geosite-reddit": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/reddit.mrs",
+      "path": "./rulesets/geosite/reddit.mrs",
+      "interval": 21600
+    },
+    "geosite-binance-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/binance-extra.list",
+      "path": "./rulesets/classical/binance-extra.list",
+      "interval": 21600
+    },
+    "geosite-binance": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/binance.mrs",
+      "path": "./rulesets/geosite/binance.mrs",
+      "interval": 21600
+    },
+    "geosite-antifilter-download-community-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/antifilter-download-community-extra.list",
+      "path": "./rulesets/classical/antifilter-download-community-extra.list",
+      "interval": 21600
+    },
+    "geosite-antifilter-download-community": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/antifilter-download-community.mrs",
+      "path": "./rulesets/geosite/antifilter-download-community.mrs",
+      "interval": 21600
+    },
+    "geosite-habr-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/habr-extra.list",
+      "path": "./rulesets/classical/habr-extra.list",
+      "interval": 21600
+    },
+    "geosite-habr": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/habr.mrs",
+      "path": "./rulesets/geosite/habr.mrs",
+      "interval": 21600
+    },
+    "geosite-category-ru-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/category-ru-extra.list",
+      "path": "./rulesets/classical/category-ru-extra.list",
+      "interval": 21600
+    },
+    "geosite-category-ru": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/category-ru.mrs",
+      "path": "./rulesets/geosite/category-ru.mrs",
+      "interval": 21600
+    },
+    "geosite-category-ip-geo-detect-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/category-ip-geo-detect-extra.list",
+      "path": "./rulesets/classical/category-ip-geo-detect-extra.list",
+      "interval": 21600
+    },
+    "geosite-category-ip-geo-detect": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/category-ip-geo-detect.mrs",
+      "path": "./rulesets/geosite/category-ip-geo-detect.mrs",
+      "interval": 21600
+    },
+    "geosite-ru-available-only-inside-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/ru-available-only-inside-extra.list",
+      "path": "./rulesets/classical/ru-available-only-inside-extra.list",
+      "interval": 21600
+    },
+    "geosite-ru-available-only-inside": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/ru-available-only-inside.mrs",
+      "path": "./rulesets/geosite/ru-available-only-inside.mrs",
+      "interval": 21600
+    },
+    "geosite-steam-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/steam-extra.list",
+      "path": "./rulesets/classical/steam-extra.list",
+      "interval": 21600
+    },
+    "geosite-steam": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/steam.mrs",
+      "path": "./rulesets/geosite/steam.mrs",
+      "interval": 21600
+    },
+    "geosite-epicgames-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/epicgames-extra.list",
+      "path": "./rulesets/classical/epicgames-extra.list",
+      "interval": 21600
+    },
+    "geosite-epicgames": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/epicgames.mrs",
+      "path": "./rulesets/geosite/epicgames.mrs",
+      "interval": 21600
+    },
+    "geosite-origin-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/origin-extra.list",
+      "path": "./rulesets/classical/origin-extra.list",
+      "interval": 21600
+    },
+    "geosite-origin": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/origin.mrs",
+      "path": "./rulesets/geosite/origin.mrs",
+      "interval": 21600
+    },
+    "geosite-googlefcm-extra": {
+      "type": "http",
+      "behavior": "classical",
+      "format": "text",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/classical/googlefcm-extra.list",
+      "path": "./rulesets/classical/googlefcm-extra.list",
+      "interval": 21600
+    },
+    "geosite-googlefcm": {
+      "type": "http",
+      "behavior": "domain",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geosite/googlefcm.mrs",
+      "path": "./rulesets/geosite/googlefcm.mrs",
+      "interval": 21600
+    },
+    "geoip-private": {
+      "type": "http",
+      "behavior": "ipcidr",
+      "format": "mrs",
+      "url": "https://raw.githubusercontent.com/alxrgv/runetfreedom-profiles/main/MIHOMO/geoip/private.mrs",
+      "path": "./rulesets/geoip/private.mrs",
+      "interval": 21600
+    }
+  }
+}

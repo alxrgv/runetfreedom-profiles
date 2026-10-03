@@ -1,0 +1,98 @@
+{
+  "geoip:private": {
+    "size": 155,
+    "sha256": "076ea1da10b442f01c6fb3b86a66411727a15df69d70e8d600a8a458b07a8bb0"
+  },
+  "geosite:antifilter-download-community": {
+    "size": 4081,
+    "sha256": "6575056f960714463b9386dbd11ec335da52027fb80959acf261173f4d9c5454"
+  },
+  "geosite:antifilter-download-community:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:binance": {
+    "size": 547,
+    "sha256": "920afb436c16184faf3ef90b5a02a36bd67178d1a77a855013e36ebbe30dcd26"
+  },
+  "geosite:binance:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:category-ip-geo-detect": {
+    "size": 1502,
+    "sha256": "d24a2a642fa807fd5537ac588c3c1af393338a1351d6da2fba85ffd95da2bace"
+  },
+  "geosite:category-ip-geo-detect:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:category-ru": {
+    "size": 8914,
+    "sha256": "b923f87ab98c870d1ef202baf33071e7ed2fc8b36755e2d71ea4abc02471dacf"
+  },
+  "geosite:category-ru:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:epicgames": {
+    "size": 413,
+    "sha256": "87096a7c01ded9ac4cd8639dbd6871663c1df60b534c78cee34cace1e3b7bd3e"
+  },
+  "geosite:epicgames:extra": {
+    "size": 169,
+    "sha256": "acc7d4cb3a1ffd4e8686c5e561d0311213cb9fc32ac3193a3106c354e915cd11"
+  },
+  "geosite:googlefcm": {
+    "size": 133,
+    "sha256": "7196a82539722cdaa8454f821a8ac903b9df89d6f25009667f0ffa083b006cd9"
+  },
+  "geosite:googlefcm:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:habr": {
+    "size": 78,
+    "sha256": "bc35a9d758ac683bde2d7c95872a050f81f67303933a4358b8a8a429dc1bdeda"
+  },
+  "geosite:habr:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:origin": {
+    "size": 186,
+    "sha256": "bf7ec7ec2fef992bfb4005db2956ede591d650319c4863b9f8b6d1ecf593434e"
+  },
+  "geosite:origin:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:reddit": {
+    "size": 206,
+    "sha256": "3c7c686ade3088c4781d8bee262c61603618db5b2be4e3e63607b591db7b4ebc"
+  },
+  "geosite:reddit:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:ru-available-only-inside": {
+    "size": 1301,
+    "sha256": "58c7b41c1e093a963b897ea3ba52e484c2672c20ff276241771d0fc6117333c9"
+  },
+  "geosite:ru-available-only-inside:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "geosite:steam": {
+    "size": 872,
+    "sha256": "29f97832356a15e6125a601c98a7286324054fbca8b74b56e0eb43e2fb3a64aa"
+  },
+  "geosite:steam:extra": {
+    "size": 46,
+    "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
+  },
+  "rule-providers.yaml": {
+    "size": 7285,
+    "sha256": "f745c0536913fb643a2daf91f1a729d63695b208651f00910c72043c79a924a6"
+  }
+}

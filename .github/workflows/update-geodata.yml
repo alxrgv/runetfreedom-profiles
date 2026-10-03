@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       force_refresh:
-        description: Increase LastUpdated even when geo files have not changed
+        description: Update config even when geo files have not changed
         required: false
         default: false
         type: boolean
@@ -19,17 +19,32 @@ on:
     branches:
       - main
     paths:
-      - "config/routing.template.json"
+      - "config/**"
+      - "scripts/**"
+      - "tests/**"
       - ".github/workflows/update-geodata.yml"
 
+# Build jobs are read-only; only publish receives write permission.
 permissions:
-  contents: write
+  contents: read
 
+# Serialize updates so two CI runs cannot publish competing GeoData versions.
 concurrency:
   group: update-runetfreedom-geodata
   cancel-in-progress: false
 
 env:
+  # Tool pins live here; optional repository Variables can override them from GitHub UI.
+  CONVERTER_REPOSITORY: ${{ vars.CONVERTER_REPOSITORY || 'MetaCubeX/meta-rules-converter' }}
+  CONVERTER_REVISION: ${{ vars.CONVERTER_REVISION || '7dea27841a3579a633189830c98c08a0434e8b79' }}
+  MIHOMO_REPOSITORY: ${{ vars.MIHOMO_REPOSITORY || 'MetaCubeX/mihomo' }}
+  MIHOMO_VERSION: ${{ vars.MIHOMO_VERSION || 'v1.19.17' }}
+  MIHOMO_REVISION: ${{ vars.MIHOMO_REVISION || 'a001b1b11008ba469442e5e59b058dd032263470' }}
+  GO_VERSION: ${{ vars.GO_VERSION || '1.25.0' }}
+
+  # Temporary shared artifact location; .dat files are never committed.
+  GEODATA_DIRECTORY: .build/geodata
+
   # GitHub owner/repository that provides the release assets.
   UPSTREAM_REPOSITORY: runetfreedom/russia-v2ray-rules-dat
 
@@ -53,7 +68,6 @@ env:
   INCY_DEEPLINK_ACTION: onadd
 
   # Validation and network behavior.
-  VERIFY_GEO_FILES_ON_CHANGE: "true"
   CURL_CONNECT_TIMEOUT_SECONDS: "15"
   CURL_MAX_TIME_SECONDS: "180"
   CURL_RETRY_COUNT: "4"
@@ -65,26 +79,36 @@ env:
   # Commit configuration.
   COMMIT_MESSAGE_PREFIX: "chore: update geodata"
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  update:
+  # Download once and hand the same verified files to both build jobs.
+  prepare-geodata:
+    name: Prepare GeoData
     runs-on: ubuntu-latest
 
+    outputs:
+      geosite_changed: ${{ steps.prepare.outputs.geosite_changed }}
+      geoip_changed: ${{ steps.prepare.outputs.geoip_changed }}
+      geodata_changed: ${{ steps.prepare.outputs.geodata_changed }}
+      release_assets_changed: ${{ steps.prepare.outputs.release_assets_changed }}
+      geosite_sha256: ${{ steps.prepare.outputs.geosite_sha256 }}
+      geoip_sha256: ${{ steps.prepare.outputs.geoip_sha256 }}
+
     steps:
-      - name: Checkout repository
+      - &checkout
+        name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Update JSON and deeplinks
-        id: update
-        shell: bash
-        env:
-          FORCE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && inputs.force_refresh || false }}
+      - &bash_helpers
+        name: Initialize shared Bash helpers
         run: |
-          set -Eeuo pipefail
+          mkdir -p .build
 
-          state_file=".geodata-checksums"
-
+          # BASH_ENV makes these functions available in every later Bash step.
+          cat > .build/workflow-helpers.sh <<'BASH_HELPERS'
           log() {
             printf '[%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"
           }
@@ -118,32 +142,141 @@ jobs:
               --retry-all-errors \
               "$1"
           }
+          BASH_HELPERS
 
-          extract_sha256() {
-            awk '{ print tolower($1); exit }'
+          printf 'BASH_ENV=%s/.build/workflow-helpers.sh\n' "$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+
+      - &setup_python
+        name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download and verify shared release assets
+        id: prepare
+        run: |
+          set -Eeuo pipefail
+
+          destination="$GEODATA_DIRECTORY"
+          mkdir -p "$destination"
+
+          require_command curl
+          require_command jq
+          require_command sha256sum
+
+          # Resolve release-specific URLs so neither build can see a newer release.
+          release_json="$(curl_get "https://api.github.com/repos/${UPSTREAM_REPOSITORY}/releases/latest")"
+          jq -e '.draft == false and .prerelease == false and (.tag_name | type == "string" and length > 0)' \
+            <<< "$release_json" >/dev/null || fail "Invalid upstream release metadata"
+
+          asset_url() {
+            jq -er --arg name "$1" '[.assets[] | select(.name == $name) | .browser_download_url]
+              | if length == 1 then .[0] else error("missing or duplicate asset: " + $name) end' <<< "$release_json"
           }
 
-          release_asset_url() {
-            local asset_name="$1"
+          geoip_url="$(asset_url geoip.dat)"
+          geosite_url="$(asset_url geosite.dat)"
 
-            jq -er --arg asset_name "$asset_name" '
-              [ .assets[] | select(.name == $asset_name) | .browser_download_url ]
-              | if length == 1 then .[0]
-                else error("expected exactly one release asset named " + $asset_name)
-                end
-            ' <<< "$release_json"
-          }
+          # Validate against authoritative upstream checksums before sharing data.
+          for kind in geosite geoip; do
+            checksum_url="$(asset_url "$kind.dat.sha256sum")"
+            expected="$(curl_get "$checksum_url" | awk '{ print tolower($1); exit }')"
+            [[ "$expected" =~ ^[0-9a-f]{64}$ ]] || fail "Invalid upstream checksum for $kind"
+            url="$(asset_url "$kind.dat")"
+            curl_get "${url}?checksum=${expected}" > "$destination/$kind.dat"
+            [[ -s "$destination/$kind.dat" ]] || fail "Empty $kind.dat download"
+            printf '%s  %s\n' "$expected" "$destination/$kind.dat" | sha256sum --check --status - \
+              || fail "Upstream checksum mismatch: $kind.dat"
+          done
 
-          validate_sha256() {
-            [[ "$1" =~ ^[0-9a-f]{64}$ ]] || fail "Invalid SHA-256 value: $1"
-          }
+          geosite_sha="$(sha256sum "$destination/geosite.dat" | awk '{print $1}')"
+          geoip_sha="$(sha256sum "$destination/geoip.dat" | awk '{print $1}')"
 
-          read_state_value() {
-            local key="$1"
+          # This lock is a candidate in the artifact; publish advances repository state.
+          jq -n --arg repository "$UPSTREAM_REPOSITORY" --arg tag "$(jq -r '.tag_name' <<< "$release_json")" \
+            --arg geosite_sha "$geosite_sha" --arg geoip_sha "$geoip_sha" \
+            --arg geosite_url "$geosite_url" --arg geoip_url "$geoip_url" \
+            '{
+              repository: $repository,
+              release_tag: $tag,
+              geosite: {sha256: $geosite_sha, url: $geosite_url},
+              geoip: {sha256: $geoip_sha, url: $geoip_url}
+            }' > "$destination/geodata.lock.json"
 
-            [[ -f "$state_file" ]] || return 0
-            awk -F= -v key="$key" '$1 == key { print $2; exit }' "$state_file"
-          }
+          [[ -f geodata.lock.json ]] || fail "Missing repository geodata.lock.json"
+          jq -n --slurpfile old geodata.lock.json --slurpfile new "$destination/geodata.lock.json" \
+            '{
+              lock: $new[0],
+              geosite_changed: ($old[0].geosite.sha256 != $new[0].geosite.sha256),
+              geoip_changed: ($old[0].geoip.sha256 != $new[0].geoip.sha256),
+              geodata_changed: (
+                ($old[0].geosite.sha256 != $new[0].geosite.sha256) or
+                ($old[0].geoip.sha256 != $new[0].geoip.sha256)
+              ),
+              release_assets_changed: (
+                ($old[0].geosite.url != $new[0].geosite.url) or
+                ($old[0].geoip.url != $new[0].geoip.url)
+              )
+            }' \
+            > "$destination/metadata.json"
+
+          python scripts/verify-geodata.py "$destination"
+
+          {
+            jq -r 'to_entries[] | select(.key != "lock") | "\(.key)=\(.value)"' "$destination/metadata.json"
+            printf 'geosite_sha256=%s\ngeoip_sha256=%s\n' "$geosite_sha" "$geoip_sha"
+          } >> "${GITHUB_OUTPUT:-/dev/null}"
+
+          log "Prepared verified release $(jq -r '.tag_name' <<< "$release_json")"
+
+      - name: Share verified GeoData with build jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: geodata
+          path: .build/geodata
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 2
+
+  # Preserve the existing HAPP/INCY JSON and deeplink contract.
+  build-xray:
+    name: Build HAPP and INCY profiles
+    needs: prepare-geodata
+    runs-on: ubuntu-latest
+
+    outputs:
+      last_updated: ${{ steps.profiles.outputs.last_updated }}
+
+    steps:
+      - *checkout
+
+      - *bash_helpers
+
+      - *setup_python
+
+      - &download_geodata
+        name: Download verified GeoData
+        uses: actions/download-artifact@v4
+        with:
+          name: geodata
+          path: .build/geodata
+
+      - name: Generate existing HAPP and INCY profiles
+        id: profiles
+        env:
+          FORCE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && inputs.force_refresh || false }}
+        run: |
+          set -Eeuo pipefail
+
+          geodata_dir="$GEODATA_DIRECTORY"
+
+          python scripts/verify-geodata.py "$geodata_dir"
+
+          GEOIP_URL="$(jq -er '.lock.geoip.url' "$geodata_dir/metadata.json")"
+          GEOSITE_URL="$(jq -er '.lock.geosite.url' "$geodata_dir/metadata.json")"
+          geodata_changed="$(jq -er '.geodata_changed | tostring' "$geodata_dir/metadata.json")"
+          release_assets_changed="$(jq -er '.release_assets_changed | tostring' "$geodata_dir/metadata.json")"
 
           read_profile_last_updated() {
             local profile_path="$1"
@@ -189,16 +322,6 @@ jobs:
             fi
 
             printf '%s\n' "$candidate"
-          }
-
-          verify_geo_file() {
-            local url="$1"
-            local expected_sha="$2"
-            local destination="$3"
-
-            curl_get "${url}?checksum=${expected_sha}" > "$destination"
-            printf '%s  %s\n' "$expected_sha" "$destination" | sha256sum --check --status - \
-              || fail "Downloaded file does not match upstream checksum: $url"
           }
 
           generate_profile() {
@@ -250,135 +373,259 @@ jobs:
             log "Generated $json_path and $deeplink_path"
           }
 
-          require_command curl
           require_command jq
           require_command base64
-          require_command sha256sum
-          require_command awk
           require_command sed
-
           [[ -f "$TEMPLATE_PATH" ]] || fail "Template was not found: $TEMPLATE_PATH"
           jq empty "$TEMPLATE_PATH"
 
-          upstream_release_api_url="https://api.github.com/repos/${UPSTREAM_REPOSITORY}/releases/latest"
-
-          log "Fetching latest upstream release metadata from $UPSTREAM_REPOSITORY"
-          release_json="$(curl_get "$upstream_release_api_url")"
-          jq -e '.draft == false and .prerelease == false and (.tag_name | type == "string")' \
-            <<< "$release_json" >/dev/null \
-            || fail "Latest upstream release metadata is invalid"
-
-          GEOIP_URL="$(release_asset_url geoip.dat)" \
-            || fail "Latest upstream release does not provide geoip.dat"
-          GEOSITE_URL="$(release_asset_url geosite.dat)" \
-            || fail "Latest upstream release does not provide geosite.dat"
-          geoip_checksum_url="$(release_asset_url geoip.dat.sha256sum)" \
-            || fail "Latest upstream release does not provide geoip.dat.sha256sum"
-          geosite_checksum_url="$(release_asset_url geosite.dat.sha256sum)" \
-            || fail "Latest upstream release does not provide geosite.dat.sha256sum"
-
-          log "Latest upstream release: $(jq -r '.tag_name' <<< "$release_json")"
-          log "Fetching release-asset checksums"
-          remote_geoip_sha="$(curl_get "$geoip_checksum_url" | extract_sha256)"
-          remote_geosite_sha="$(curl_get "$geosite_checksum_url" | extract_sha256)"
-
-          validate_sha256 "$remote_geoip_sha"
-          validate_sha256 "$remote_geosite_sha"
-
-          current_geoip_sha="$(read_state_value GEOIP_SHA256)"
-          current_geosite_sha="$(read_state_value GEOSITE_SHA256)"
-          current_geoip_url="$(read_state_value GEOIP_URL)"
-          current_geosite_url="$(read_state_value GEOSITE_URL)"
-
-          geodata_changed="false"
-          if [[ "$remote_geoip_sha" != "$current_geoip_sha" \
-             || "$remote_geosite_sha" != "$current_geosite_sha" ]]; then
-            geodata_changed="true"
-          fi
-
-          release_assets_changed="false"
-          if [[ "$GEOIP_URL" != "$current_geoip_url" \
-             || "$GEOSITE_URL" != "$current_geosite_url" ]]; then
-            release_assets_changed="true"
-          fi
-
+          # One monotonic timestamp is shared by both generated profiles.
           current_last_updated="$(get_current_last_updated)"
           last_updated="$current_last_updated"
-
-          if is_true "$geodata_changed" \
-             || is_true "$release_assets_changed" \
-             || is_true "$FORCE_REFRESH"; then
+          if is_true "$geodata_changed" || is_true "$release_assets_changed" || is_true "${FORCE_REFRESH:-false}"; then
             last_updated="$(next_last_updated "$current_last_updated")"
           fi
 
-          log "GeoIP checksum:   $remote_geoip_sha"
-          log "Geosite checksum: $remote_geosite_sha"
-          log "Geo files changed: $geodata_changed"
-          log "Release assets changed: $release_assets_changed"
-          log "Force refresh: ${FORCE_REFRESH,,}"
-          log "LastUpdated: $last_updated"
-
-          if is_true "$geodata_changed" && is_true "$VERIFY_GEO_FILES_ON_CHANGE"; then
-            log "Downloading and verifying changed geo files"
-            tmp_dir="$(mktemp -d)"
-            trap 'rm -rf "$tmp_dir"' EXIT
-
-            verify_geo_file "$GEOIP_URL" "$remote_geoip_sha" "$tmp_dir/geoip.dat"
-            verify_geo_file "$GEOSITE_URL" "$remote_geosite_sha" "$tmp_dir/geosite.dat"
-          fi
+          generate_profile \
+            "$HAPP_ENABLED" "$HAPP_PROFILE_NAME" \
+            "$HAPP_DEEPLINK_SCHEME" "$HAPP_DEEPLINK_ACTION" \
+            "$HAPP_JSON_PATH" "$HAPP_DEEPLINK_PATH"
 
           generate_profile \
-            "$HAPP_ENABLED" \
-            "$HAPP_PROFILE_NAME" \
-            "$HAPP_DEEPLINK_SCHEME" \
-            "$HAPP_DEEPLINK_ACTION" \
-            "$HAPP_JSON_PATH" \
-            "$HAPP_DEEPLINK_PATH"
+            "$INCY_ENABLED" "$INCY_PROFILE_NAME" \
+            "$INCY_DEEPLINK_SCHEME" "$INCY_DEEPLINK_ACTION" \
+            "$INCY_JSON_PATH" "$INCY_DEEPLINK_PATH"
 
-          generate_profile \
-            "$INCY_ENABLED" \
-            "$INCY_PROFILE_NAME" \
-            "$INCY_DEEPLINK_SCHEME" \
-            "$INCY_DEEPLINK_ACTION" \
-            "$INCY_JSON_PATH" \
-            "$INCY_DEEPLINK_PATH"
+          printf 'last_updated=%s\n' "$last_updated" >> "${GITHUB_OUTPUT:-/dev/null}"
 
-          cat > "$state_file" <<EOF
-          GEOIP_SHA256=${remote_geoip_sha}
-          GEOSITE_SHA256=${remote_geosite_sha}
-          GEOIP_URL=${GEOIP_URL}
-          GEOSITE_URL=${GEOSITE_URL}
-          EOF
+      - name: Upload generated profiles for publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: profiles
+          path: |
+            HAPP/
+            INCY/
+          if-no-files-found: error
+          retention-days: 2
 
-          {
-            echo "geodata_changed=$geodata_changed"
-            echo "release_assets_changed=$release_assets_changed"
-            echo "last_updated=$last_updated"
-          } >> "$GITHUB_OUTPUT"
+  build-mihomo:
+    name: Build Mihomo rulesets
+    needs: prepare-geodata
+    runs-on: ubuntu-latest
 
-      - name: Commit generated files
-        shell: bash
+    steps:
+      - *checkout
+
+      - *bash_helpers
+
+      - name: Set up pinned Go version
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - *setup_python
+
+      - name: Checkout pinned converter source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.CONVERTER_REPOSITORY }}
+          ref: ${{ env.CONVERTER_REVISION }}
+          path: .build/converter-source
+          persist-credentials: false
+
+      - name: Checkout pinned Mihomo source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MIHOMO_REPOSITORY }}
+          ref: ${{ env.MIHOMO_REVISION }}
+          path: .build/mihomo-source
+          persist-credentials: false
+
+      - name: Cache Go dependencies and build results
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-mihomo-${{ env.GO_VERSION }}-${{ env.CONVERTER_REVISION }}-${{ env.MIHOMO_REVISION }}-${{ hashFiles('scripts/geodata-audit.go') }}
+
+      - *download_geodata
+
+      - name: Verify artifact and run orchestration tests
+        run: |
+          python scripts/verify-geodata.py .build/geodata
+          python -m unittest discover -s tests
+
+      - name: Build converter, source audit, and Mihomo from pinned source
         run: |
           set -Eeuo pipefail
 
-          if git diff --quiet && git diff --cached --quiet && [[ -z "$(git status --porcelain)" ]]; then
-            echo "No changes detected"
-            exit 0
+          converter_source=".build/converter-source"
+          mihomo_source=".build/mihomo-source"
+          output=".build/tools"
+
+          mkdir -p "$output"
+          output="$(cd "$output" && pwd)"
+
+          audit_source="$GITHUB_WORKSPACE/scripts/geodata-audit.go"
+
+          # Verify the source pins before compiling either tool.
+          [[ "$(git -C "$converter_source" rev-parse HEAD)" == "$CONVERTER_REVISION" ]] \
+            || fail "Converter checkout differs from pinned revision"
+          [[ "$(git -C "$mihomo_source" rev-parse HEAD)" == "$MIHOMO_REVISION" ]] \
+            || fail "Mihomo checkout differs from pinned revision"
+
+          (
+            cd "$converter_source"
+            go build -mod=readonly -trimpath -o "$output/converter" .
+            go build -mod=readonly -trimpath -o "$output/geodata-audit" "$audit_source"
+            go test -mod=readonly "$audit_source" "${audit_source%.go}_test.go"
+          )
+
+          (
+            cd "$mihomo_source"
+            go build -mod=readonly -trimpath \
+              -ldflags "-X github.com/metacubex/mihomo/constant.Version=$MIHOMO_VERSION" \
+              -o "$output/mihomo" .
+          )
+
+          "$output/mihomo" -v
+
+      - name: Convert selected categories, check parity, and validate providers
+        run: |
+          python scripts/generate-mihomo-rulesets.py \
+            --geosite "$(jq -c '.geosite' config/mihomo-rulesets.json)" \
+            --geoip "$(jq -c '.geoip' config/mihomo-rulesets.json)" \
+            --geosite-dat .build/geodata/geosite.dat \
+            --geoip-dat .build/geodata/geoip.dat \
+            --converter .build/tools/converter \
+            --audit .build/tools/geodata-audit \
+            --mihomo .build/tools/mihomo \
+            --mihomo-version "$MIHOMO_VERSION" \
+            --base-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/MIHOMO" \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Check generated file hashes
+        run: python scripts/verify-mihomo-lock.py MIHOMO
+
+      - name: Upload validated Mihomo files for publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: MIHOMO
+          path: MIHOMO/
+          if-no-files-found: error
+          retention-days: 2
+
+  # Publish each successful build; one failed build does not block the other.
+  # A single publisher avoids competing pushes to the same branch.
+  publish:
+    name: Publish generated files
+    needs: [prepare-geodata, build-xray, build-mihomo]
+    if: ${{ !cancelled() && (needs.build-xray.result == 'success' || needs.build-mihomo.result == 'success') }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout publication branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - *bash_helpers
+
+      - *setup_python
+
+      - *download_geodata
+
+      - name: Download successful profile build
+        if: ${{ needs.build-xray.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: profiles
+          path: .build/artifacts/profiles
+
+      - name: Download successful Mihomo build
+        if: ${{ needs.build-mihomo.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: MIHOMO
+          path: .build/artifacts/MIHOMO
+
+      - name: Publish successful outputs
+        env:
+          LAST_UPDATED: ${{ needs.build-xray.outputs.last_updated }}
+          XRAY_RESULT: ${{ needs.build-xray.result }}
+          MIHOMO_RESULT: ${{ needs.build-mihomo.result }}
+        run: |
+          set -Eeuo pipefail
+
+          artifact_root=".build/artifacts"
+          geodata_dir="$GEODATA_DIRECTORY"
+          staged_paths=()
+          published=()
+
+          # Refuse to publish outputs built against obsolete templates/configuration.
+          git fetch origin "$GITHUB_REF_NAME"
+          [[ "$(git rev-parse FETCH_HEAD)" == "$GITHUB_SHA" ]] \
+            || fail "Branch advanced during build; rerun against its current revision"
+
+          python scripts/verify-geodata.py "$geodata_dir"
+
+          if [[ "$XRAY_RESULT" == success ]]; then
+            for profile in HAPP INCY; do
+              [[ -d "$artifact_root/profiles/$profile" ]] || fail "Missing profile artifact: $profile"
+              mkdir -p "$profile"
+              cp -a "$artifact_root/profiles/$profile/." "$profile/"
+            done
+
+            # The root lock tracks published HAPP/INCY profiles.
+            cp "$geodata_dir/geodata.lock.json" geodata.lock.json
+            staged_paths+=(HAPP INCY geodata.lock.json)
+            published+=("HAPP/INCY LastUpdated: ${LAST_UPDATED}")
           fi
 
-          git add -A -- \
-            .geodata-checksums \
-            HAPP \
-            INCY
+          if [[ "$MIHOMO_RESULT" == success ]]; then
+            python scripts/verify-mihomo-lock.py "$artifact_root/MIHOMO"
+
+            # Remove deselected categories only when a new Mihomo build is available.
+            python - "$artifact_root/MIHOMO" <<'PY'
+          from pathlib import Path
+          import shutil
+          import sys
+
+          source, destination = Path(sys.argv[1]), Path("MIHOMO")
+          desired = {path.relative_to(source) for path in source.rglob("*") if path.is_file()}
+
+          (destination / "manifest.json").unlink(missing_ok=True)
+
+          for kind in ("geosite", "geoip", "classical"):
+              for path in (destination / kind).glob("*"):
+                  if path.is_file() and path.suffix in (".mrs", ".list", ".yaml") and path.relative_to(destination) not in desired:
+                      path.unlink()
+
+          for relative in desired:
+              target = destination / relative
+              target.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copyfile(source / relative, target)
+          PY
+            staged_paths+=(MIHOMO)
+            published+=("MIHOMO")
+          fi
+
+          git add -A -- "${staged_paths[@]}"
 
           if git diff --cached --quiet; then
-            echo "No generated changes to commit"
+            log "No generated changes to commit"
             exit 0
           fi
 
           git config --local user.name "$GITHUB_ACTOR"
-          git config --local user.email \
-            "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+          git config --local user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
 
-          git commit -m "${COMMIT_MESSAGE_PREFIX} (LastUpdated: ${{ steps.update.outputs.last_updated }})"
-          git push
+          git commit -m "${COMMIT_MESSAGE_PREFIX} (${published[*]})"
+
+          # A normal push rejects any concurrent branch update; never force/rebase stale outputs.
+          git push origin "HEAD:${GITHUB_REF_NAME}"

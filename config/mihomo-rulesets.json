@@ -1,0 +1,18 @@
+{
+  "geosite": [
+    "reddit",
+    "binance",
+    "antifilter-download-community",
+    "habr",
+    "category-ru",
+    "category-ip-geo-detect",
+    "ru-available-only-inside",
+    "steam",
+    "epicgames",
+    "origin",
+    "googlefcm"
+  ],
+  "geoip": [
+    "private"
+  ]
+}
