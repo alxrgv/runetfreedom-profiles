@@ -64,8 +64,8 @@
     "sha256": "db27297e7e1050418deb0c536ddf18066b500dd3d876c105132fbe1826265261"
   },
   "geoip:private": {
-    "size": 155,
-    "sha256": "076ea1da10b442f01c6fb3b86a66411727a15df69d70e8d600a8a458b07a8bb0"
+    "size": 236,
+    "sha256": "65027bee3076ec49024935c0eb9e4b85a447687db384d4b8d2763b6c2566ec1f"
   },
   "geosite:antifilter-download-community": {
     "size": 4081,
