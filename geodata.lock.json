@@ -1,12 +1,12 @@
 {
   "repository": "runetfreedom/russia-v2ray-rules-dat",
-  "release_tag": "202611051123",
+  "release_tag": "202611052130",
   "geosite": {
-    "sha256": "d9580f62cc6f8483eeb72a12bfbdac4650a197ba5b5884da5b7121930026ddb4",
-    "url": "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202611051123/geosite.dat"
+    "sha256": "7ea815b277e3a653f01ce32c6e0e33f1555c73b2abdce802ac27c27dd5fd6488",
+    "url": "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202611052130/geosite.dat"
   },
   "geoip": {
     "sha256": "d46c85ee9e5798806b0e706aeadbc50a95124cf18be1ce0126bf717b805db4e6",
-    "url": "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202611051123/geoip.dat"
+    "url": "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/download/202611052130/geoip.dat"
   }
 }
