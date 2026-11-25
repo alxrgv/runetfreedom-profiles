@@ -84,8 +84,8 @@
     "sha256": "0c3d8bc61a0b9f0dbd2b95aa4a6961ad26dd3f2e11ec9b66b1888cf0af067337"
   },
   "geosite:category-ru": {
-    "size": 9297,
-    "sha256": "85e693ce1f377a552995d50d689893878a1c87fcca4c5046f4bb6da45c8f9aef"
+    "size": 9561,
+    "sha256": "f8f292b7e717c91d02b17d4015a820a69c8fa05be1bac2e5dbd32a6c73812d3a"
   },
   "geosite:epicgames": {
     "size": 413,
@@ -116,8 +116,8 @@
     "sha256": "3c7c686ade3088c4781d8bee262c61603618db5b2be4e3e63607b591db7b4ebc"
   },
   "geosite:ru-available-only-inside": {
-    "size": 1342,
-    "sha256": "91a4f8350eddfa9c03e87359f658a4985c70a982d8d1f6f59d9c1d6f3408dcc7"
+    "size": 3296,
+    "sha256": "92d199eadabeb182d08385a4fd52ddbee874b1d49988a1d680e0e658d7419635"
   },
   "geosite:ru-blocked": {
     "size": 528119,
